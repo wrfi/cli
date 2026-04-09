@@ -1,0 +1,23 @@
+{
+  "name": "wrfi",
+  "version": "1.0.0",
+  "description": "CLI and MCP server for wr.fi — push, read, update, diff, and manage AI creations",
+  "bin": {
+    "wrfi": "./index.js",
+    "wrify": "./index.js"
+  },
+  "type": "module",
+  "license": "Apache-2.0",
+  "homepage": "https://wr.fi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wrfi/cli"
+  },
+  "keywords": ["ai", "wr.fi", "wrfi", "mcp", "cli", "share", "upload", "model-context-protocol", "agent-handoff"],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
