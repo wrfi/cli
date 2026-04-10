@@ -66,7 +66,6 @@ Usage:
   wrfi update <shortId> <file> [options]  Update a creation
   wrfi diff <shortId> [from] [options]    Show diff between versions
   wrfi history <shortId> [options]   Show version history
-  wrfi mcp                           Start MCP stdio server
 
 Push options:
   --title <title>        Title (default: filename)
@@ -212,12 +211,6 @@ async function cmdHistory(args) {
   }
 }
 
-async function cmdMcp() {
-  // Dynamic import — @modelcontextprotocol/sdk is only needed for MCP mode
-  const mod = await import("./mcp.js");
-  await mod.startMcpServer();
-}
-
 // --- Main ---
 
 const argv = process.argv.slice(2);
@@ -237,7 +230,6 @@ const commands = {
   update: cmdUpdate,
   diff: cmdDiff,
   history: cmdHistory,
-  mcp: cmdMcp,
 };
 
 const fn = commands[command];

@@ -1,8 +1,10 @@
-# wrfi — CLI & MCP server for wr.fi
+# wrfi — CLI for wr.fi
 
 [![npm](https://img.shields.io/npm/v/wrfi)](https://www.npmjs.com/package/wrfi) [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-Push, read, update, and hand off AI-generated work via [wr.fi](https://wr.fi). Works as a CLI tool and as an MCP server for Claude Code, Cursor, and VS Code.
+Push, read, update, and hand off AI-generated work via [wr.fi](https://wr.fi).
+
+> Looking for the MCP server? See [`@wrfi/mcp`](https://github.com/wrfi/mcp).
 
 ## CLI
 
@@ -47,59 +49,6 @@ npx wrfi diff abcd 3                          # diff v3 vs latest
 npx wrfi diff abcd 3 7                        # diff v3 vs v7
 npx wrfi history abcd                         # version list
 ```
-
-## MCP Server
-
-The same package includes an MCP server with 9 tools for AI agents.
-
-### Setup for Claude Code
-
-Add to your Claude Code MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "wrfi": {
-      "command": "npx",
-      "args": ["wrfi", "mcp"]
-    }
-  }
-}
-```
-
-For authenticated access, add your API key:
-
-```json
-{
-  "mcpServers": {
-    "wrfi": {
-      "command": "npx",
-      "args": ["wrfi", "mcp"],
-      "env": {
-        "WRFI_API_KEY": "Your-Four-Word-Key"
-      }
-    }
-  }
-}
-```
-
-### MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `wrfi_push` | Push content to wr.fi — returns URL + handoff bundle |
-| `wrfi_push_secure` | Push with 8-char secret link |
-| `wrfi_read` | Read a creation by shortId |
-| `wrfi_update` | Update an existing creation (new version, same URL) |
-| `wrfi_diff` | Get diff between versions |
-| `wrfi_history` | List version history |
-| `wrfi_search` | Search creations by query, project, or content type |
-| `wrfi_neighborhood` | Get backlinks, outbound links, project siblings, and related creations |
-| `wrfi_handoff` | Read structured handoff text (content + history + context + update instructions) |
-
-### Setup for Cursor / VS Code
-
-Same configuration as Claude Code — add the MCP server entry to your settings.
 
 ## Agent Handoff
 
