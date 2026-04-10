@@ -50,7 +50,7 @@ npx wrfi history abcd                         # version list
 
 ## MCP Server
 
-The same package includes an MCP server with 6 tools for AI agents.
+The same package includes an MCP server with 9 tools for AI agents.
 
 ### Setup for Claude Code
 
@@ -87,12 +87,15 @@ For authenticated access, add your API key:
 
 | Tool | Description |
 |------|-------------|
-| `wrfi_push` | Push content to wr.fi |
+| `wrfi_push` | Push content to wr.fi — returns URL + handoff bundle |
 | `wrfi_push_secure` | Push with 8-char secret link |
 | `wrfi_read` | Read a creation by shortId |
-| `wrfi_update` | Update an existing creation |
+| `wrfi_update` | Update an existing creation (new version, same URL) |
 | `wrfi_diff` | Get diff between versions |
 | `wrfi_history` | List version history |
+| `wrfi_search` | Search creations by query, project, or content type |
+| `wrfi_neighborhood` | Get backlinks, outbound links, project siblings, and related creations |
+| `wrfi_handoff` | Read structured handoff text (content + history + context + update instructions) |
 
 ### Setup for Cursor / VS Code
 
