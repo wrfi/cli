@@ -1,6 +1,6 @@
 # wrfi — CLI for wr.fi
 
-[![npm](https://img.shields.io/npm/v/wrfi)](https://www.npmjs.com/package/wrfi) [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![npm](https://img.shields.io/npm/v/wrfi)](https://www.npmjs.com/package/wrfi) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Push, read, update, and hand off AI-generated work via [wr.fi](https://wr.fi).
 
@@ -77,6 +77,6 @@ See the [WRFI Agent Handoff Protocol](https://github.com/wrfi/wrfi-spec/blob/mai
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 Copyright 2026 Kurikkai Oy.

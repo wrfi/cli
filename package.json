@@ -7,7 +7,7 @@
     "wrify": "./index.js"
   },
   "type": "module",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "homepage": "https://wr.fi",
   "repository": {
     "type": "git",
