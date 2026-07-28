@@ -443,12 +443,17 @@ async function cmdTail(args) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     await new Promise((r) => setTimeout(r, intervalMs));
-    let out;
-    try { out = await tail(shortId, 100, { ...auth, json: true }); }
-    catch (err) { console.error(`(tail retry: ${err.message})`); continue; }
-    for (const e of out.entries) {
-      if (e.version > lastVersion) { printEntry(e); lastVersion = e.version; }
-    }
+    // Drain with the cursor until caught up: a burst faster than the poll
+    // interval pages through in 100-entry chunks instead of silently skipping
+    // whatever fell outside a fixed window.
+    try {
+      for (;;) {
+        const out = await tail(shortId, 100, { ...auth, json: true, after: lastVersion });
+        if (!out.entries.length) break;
+        for (const e of out.entries) { printEntry(e); lastVersion = Math.max(lastVersion, e.version); }
+        if (out.entries.length < 100) break;
+      }
+    } catch (err) { console.error(`(tail retry: ${err.message})`); continue; }
   }
 }
 
