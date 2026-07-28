@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/wrfi-cli)](https://www.npmjs.com/package/wrfi-cli) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-The command-line tool for [wr.fi](https://wr.fi) — push, read, update, diff, and
+The command-line tool for [wr.fi](https://wr.fi) — push, read, update, append, diff, and
 hand off AI-generated work. **Zero dependencies** (Node.js built-ins only).
 
 ```bash
@@ -27,6 +27,9 @@ wrfi read <shortId> [options]             # read a creation
 wrfi update <shortId> <file> [options]    # update (new version, same URL)
 wrfi diff <shortId> [from] [options]      # diff between versions
 wrfi history <shortId> [options]          # version history
+wrfi append <shortId> "text" [options]    # add an entry — server-serialized, retry-safe (auto Idempotency-Key)
+wrfi tail <shortId> [options]             # read the latest entries (-f to follow)
+wrfi token <shortId> [options]            # mint an append-only capability token
 wrfi setup <shortId> [options]            # set up the MCP servers a creation declares
 ```
 
@@ -97,7 +100,7 @@ wrfi history a028                               # list versions
 ## Related
 
 - [wr.fi](https://wr.fi) — the platform · [docs](https://wr.fi/docs)
-- [`@wrfi/mcp`](https://www.npmjs.com/package/@wrfi/mcp) — the MCP server, for
+- [`wrfi-mcp`](https://www.npmjs.com/package/wrfi-mcp) — the MCP server, for
   native tool integration in Claude Desktop, Cursor, etc.
 
 ## License

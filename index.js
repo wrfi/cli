@@ -1,8 +1,21 @@
 #!/usr/bin/env node
 
+import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, extname } from "node:path";
 import { push, read, readRaw, update, diff, history, catchup, append, tail, mintToken } from "./lib/api.js";
+
+
+// --task / --environment take JSON files; parse eagerly so a typo fails
+// before any network call, not after a successful push.
+function loadJsonFlag(path, flag) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (e) {
+    console.error(`${flag}: could not read/parse ${path}: ${e.message}`);
+    process.exit(1);
+  }
+}
 
 // Extension → { contentType, mimeType }
 const EXT_MAP = {
@@ -107,6 +120,10 @@ Append options:
   --append-token <tok>   Append-only token (from wrfi token --append-only)
   --message <msg>        Version note
   --expected-version <n> Opt into strict mode (409 if not this version)
+  --idempotency-key <k>  Repeat-safe retries: the same Idempotency-Key within 10 min replays the first result
+  --task <file.json>     Attach the task layer (objective, requestedAction, completed[], …) on push/update
+  --environment <f.json> Declare the workspace (MCP servers, skills) the next agent needs
+  --status <s>           Relay status: open | done | needs-human
 
 Tail options:
   -f, --follow           Stream new entries as they arrive
@@ -181,6 +198,10 @@ function parseArgs(argv) {
     else if (arg === "--client" && i + 1 < argv.length) args.client = argv[++i];
     else if (arg === "--author" && i + 1 < argv.length) args.author = argv[++i];
     else if (arg === "--append-token" && i + 1 < argv.length) args.appendToken = argv[++i];
+    else if (arg === "--idempotency-key" && i + 1 < argv.length) args.idempotencyKey = argv[++i];
+    else if (arg === "--task" && i + 1 < argv.length) args.taskFile = argv[++i];
+    else if (arg === "--environment" && i + 1 < argv.length) args.environmentFile = argv[++i];
+    else if (arg === "--status" && i + 1 < argv.length) args.status = argv[++i];
     else if (arg === "--append-only") args.appendOnly = true;
     else if (arg === "--label" && i + 1 < argv.length) args.label = argv[++i];
     else if (arg === "--follow" || arg === "-f") args.follow = true;
@@ -220,11 +241,28 @@ async function cmdPush(args) {
     password: args.password,
     apiKey: args.key,
     provenance: { tool: "wrfi-cli" },
+    ...(args.status ? { status: args.status } : {}),
+    ...(args.taskFile ? { task: loadJsonFlag(args.taskFile, "--task") } : {}),
+    ...(args.environmentFile ? { environment: loadJsonFlag(args.environmentFile, "--environment") } : {}),
   });
 
+  // Receipt: the proof-of-publish block (URL on stdout for piping; receipt on
+  // stderr). "Don't consider it published until you hold a receipt" is the
+  // verification pattern that replaces trusting an agent's claim.
   console.log(result.url);
-  if (result.editToken) console.error(`Edit token: ${result.editToken}`);
-  if (result.expiresAt) console.error(`Expires: ${result.expiresAt}`);
+  console.error(`─ Receipt ──────────────────────────────`);
+  console.error(`Handoff:    ${result.url}  (v${result.version ?? 1})`);
+  if (result.visibility) console.error(`Visibility: ${result.visibility}`);
+  const lc = result.lifecycle;
+  if (lc) {
+    console.error(`Lifecycle:  ${lc.accessMode}${lc.expiresAt ? ` — expires ${lc.expiresAt.slice(0, 10)}` : ""}`);
+    console.error(`Research:   ${lc.researchEligible ? "eligible (Terms §10)" : "not eligible"}`);
+  } else if (result.expiresAt) {
+    console.error(`Expires:    ${result.expiresAt}`);
+  }
+  if (result.editToken) console.error(`Edit token: ${result.editToken}  (save it — cannot be recovered)`);
+  if (result.protocol) console.error(`Protocol:   ${result.protocol}`);
+  console.error(`────────────────────────────────────────`);
 }
 
 async function cmdRead(args) {
@@ -267,6 +305,9 @@ async function cmdUpdate(args) {
       message: args.message,
       expectedVersion: args.expectedVersion,
       force: args.force,
+      ...(args.status ? { status: args.status } : {}),
+      ...(args.taskFile ? { task: loadJsonFlag(args.taskFile, "--task") } : {}),
+      ...(args.environmentFile ? { environment: loadJsonFlag(args.environmentFile, "--environment") } : {}),
     });
   } catch (err) {
     // Conflict responses carry structure — surface it instead of a bare message.
@@ -369,6 +410,10 @@ async function cmdAppend(args) {
     appendToken: args.appendToken,
     editToken: args.token,
     apiKey: args.key,
+    // Auto-key: every append is retry-safe even if the caller never thinks
+    // about idempotency — one UUID per command invocation, reused across the
+    // client's internal retries.
+    idempotencyKey: args.idempotencyKey || crypto.randomUUID(),
     expectedVersion: args.expectedVersion,
   });
   if (result.error) { console.error(`Error: ${result.error}${result.hint ? ` (hint: ${result.hint})` : ""}`); process.exit(1); }
