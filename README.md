@@ -1,6 +1,6 @@
 # wrfi
 
-[![npm](https://img.shields.io/npm/v/wrfi)](https://www.npmjs.com/package/wrfi) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![npm](https://img.shields.io/npm/v/wrfi-cli)](https://www.npmjs.com/package/wrfi-cli) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 The command-line tool for [wr.fi](https://wr.fi) — push, read, update, diff, and
 hand off AI-generated work. **Zero dependencies** (Node.js built-ins only).
