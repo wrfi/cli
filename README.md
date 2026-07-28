@@ -81,7 +81,8 @@ wrfi history a028                               # list versions
 | `--since <n>` | read | Catch-up: what changed since version `n` |
 | `--summary` | read | With `--since`: the gist, no diff body |
 | `--message <m>` | update | Version note |
-| `--expected-version <n>` | update | Reject with 409 on version mismatch |
+| `--expected-version <n>` | update | Update only if the creation is at version `n` (409 otherwise). Omitted: the CLI reads the current version and uses it — the default update is version-safe |
+| `--force` | update | Last-write-wins: skip the version check and overwrite (audited by the server) |
 | `--json` | read | Full JSON instead of content |
 | `--key <k>` | all | API key (or set `WRFI_API_KEY`) |
 | `--url <u>` | all | Base URL (default: `https://wr.fi`) |
