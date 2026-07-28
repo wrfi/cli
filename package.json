@@ -1,10 +1,10 @@
 {
-  "name": "wrfi",
+  "name": "wrfi-cli",
   "version": "1.1.0",
   "description": "CLI for wr.fi \u2014 push, read, update, diff, and manage AI creations",
   "bin": {
     "wrfi": "./index.js",
-    "wrify": "./index.js"
+    "wrfi-cli": "./index.js"
   },
   "type": "module",
   "license": "MIT",

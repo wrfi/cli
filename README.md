@@ -6,15 +6,15 @@ The command-line tool for [wr.fi](https://wr.fi) — push, read, update, diff, a
 hand off AI-generated work. **Zero dependencies** (Node.js built-ins only).
 
 ```bash
-npx wrfi push hello.py            # → https://wr.fi/abcd  + an edit token
+npx wrfi-cli push hello.py            # → https://wr.fi/abcd  + an edit token
 ```
 
 ## Install
 
 ```bash
-npx wrfi <command>                # no install needed
+npx wrfi-cli <command>            # no install needed
 # or
-npm install -g wrfi               # then: wrfi <command>
+npm install -g wrfi-cli           # then: wrfi <command>
 ```
 
 Requires Node.js ≥ 18.
