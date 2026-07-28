@@ -82,7 +82,9 @@ Read options:
 Update options:
   --token <token>        Edit token (required for anonymous updates)
   --message <msg>        Version note
-  --expected-version <n> Reject if version mismatch (409)
+  --expected-version <n> Update only if the creation is at version n (409 otherwise).
+                         Omitted: the CLI reads the current version and uses it.
+  --force                Last-write-wins: skip the version check and overwrite (audited)
 
 Common options:
   --key <api-key>        API key (or set WRFI_API_KEY env var)
@@ -112,6 +114,7 @@ function parseArgs(argv) {
     else if (arg === "--password" && i + 1 < argv.length) args.password = argv[++i];
     else if (arg === "--message" && i + 1 < argv.length) args.message = argv[++i];
     else if (arg === "--expected-version" && i + 1 < argv.length) args.expectedVersion = parseInt(argv[++i], 10);
+    else if (arg === "--force") args.force = true;
     else if (arg === "--secure") args.secure = true;
     else if (arg === "--unlisted") args.unlisted = true;
     else if (arg === "--json") args.json = true;
@@ -172,16 +175,33 @@ async function cmdUpdate(args) {
   const name = basename(file);
   const { ct, mime } = detect(name);
 
-  const result = await update(shortId, {
-    artifacts: [{ data: data.toString("base64"), mimeType: mime, filename: name }],
-    editToken: args.token,
-    apiKey: args.key,
-    message: args.message,
-    expectedVersion: args.expectedVersion,
-  });
+  let result;
+  try {
+    result = await update(shortId, {
+      artifacts: [{ data: data.toString("base64"), mimeType: mime, filename: name }],
+      editToken: args.token,
+      apiKey: args.key,
+      message: args.message,
+      expectedVersion: args.expectedVersion,
+      force: args.force,
+    });
+  } catch (err) {
+    if (err.status === 409 && err.body) {
+      console.error(`Version conflict: the creation is now at v${err.body.currentVersion}.`);
+      console.error(`Re-read it, merge, and retry — or pass --force to overwrite the newer version.`);
+      process.exit(1);
+    }
+    if (err.status === 428 && err.body) {
+      console.error(`The server requires a version check (current: v${err.body.currentVersion}).`);
+      console.error(`Retry with --expected-version ${err.body.currentVersion}, or --force to overwrite.`);
+      process.exit(1);
+    }
+    throw err;
+  }
 
   console.log(result.url);
   console.error(`Version: ${result.version}`);
+  if (result.forced) console.error(`Forced: overwrote v${result.forcedOverwriteOfVersion} (last-write-wins)`);
 }
 
 async function cmdDiff(args) {
