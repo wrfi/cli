@@ -1,82 +1,104 @@
-# wrfi — CLI for wr.fi
+# wrfi
 
 [![npm](https://img.shields.io/npm/v/wrfi)](https://www.npmjs.com/package/wrfi) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Push, read, update, and hand off AI-generated work via [wr.fi](https://wr.fi).
-
-> Looking for the MCP server? See [`@wrfi/mcp`](https://github.com/wrfi/mcp).
-
-## CLI
+The command-line tool for [wr.fi](https://wr.fi) — push, read, update, diff, and
+hand off AI-generated work. **Zero dependencies** (Node.js built-ins only).
 
 ```bash
-npx wrfi push hello.py                        # push a file
-npx wrfi push doc.md --secure                 # 8-char secret link
-npx wrfi read abcd                            # read a creation
-npx wrfi update abcd todo.md --token Blue-Castle  # update
-npx wrfi diff abcd 5                          # diff between versions
-npx wrfi history abcd                         # version list
+npx wrfi push hello.py            # → https://wr.fi/abcd  + an edit token
 ```
 
-### Push options
+## Install
 
 ```bash
-npx wrfi push file.py                         # anonymous, 30-day expiry
-npx wrfi push file.py --key Your-API-Key      # authenticated, permanent
-npx wrfi push file.py --secure                # 8-char URL
-npx wrfi push file.py --password secret       # password-protected
-npx wrfi push file.py --token Blue-Castle     # update existing (with edit token)
+npx wrfi <command>                # no install needed
+# or
+npm install -g wrfi               # then: wrfi <command>
 ```
 
-### Read
+Requires Node.js ≥ 18.
+
+## Usage
 
 ```bash
-npx wrfi read abcd                            # raw content to stdout
-npx wrfi read abcd --json                     # full JSON metadata
-npx wrfi read abcd --version 3                # specific version
+wrfi push <file> [options]                # push a file → short URL
+wrfi read <shortId> [options]             # read a creation
+wrfi update <shortId> <file> [options]    # update (new version, same URL)
+wrfi diff <shortId> [from] [options]      # diff between versions
+wrfi history <shortId> [options]          # version history
+wrfi setup <shortId> [options]            # set up the MCP servers a creation declares
 ```
 
-### Update
+### `wrfi setup` — reconstitute an agent environment
+
+A creation can declare the MCP servers the next agent needs (an `environment`
+manifest). `wrfi setup` reconstitutes them — **with per-item confirmation, never
+silently.**
 
 ```bash
-npx wrfi update abcd newfile.py --token Blue-Castle
-npx wrfi update abcd newfile.py --key Your-API-Key
+wrfi setup abcd --plan      # show the plan + trust signals; write nothing
+wrfi setup abcd --print     # print the .mcp.json block to paste manually
+wrfi setup abcd             # interactive: confirm each server, then merge into ./.mcp.json
 ```
 
-### Diff & History
+It shows each server's trust signal (resolved against the official
+[MCP Registry](https://registry.modelcontextprotocol.io) — "registered" means
+*known identity*, not vetted-safe) and the publisher (anonymous publishers get a
+loud warning). Each item is confirmed individually; `--yes` only applies to
+locally-trusted/registered servers — never to anonymous or unlisted ones.
+
+- **MCP servers** merge into the client's config, preserving any already there.
+  Target it with `--client claude-code` (default, project `.mcp.json`), `cursor`
+  (`.cursor/mcp.json`), or `claude-desktop`; `--global` / `--target <file>` to override.
+- **Skills** are fetched into `.claude/skills/<name>/` (sources: wr.fi-hosted or a
+  direct URL; git sources are shown to clone manually). Filenames are
+  traversal-checked and executables are refused. `--mcp-only` skips skills.
+
+### Examples
 
 ```bash
-npx wrfi diff abcd 3                          # diff v3 vs latest
-npx wrfi diff abcd 3 7                        # diff v3 vs v7
-npx wrfi history abcd                         # version list
+wrfi push hello.py                              # anonymous push (30-day expiry)
+wrfi push doc.md --secure --title "Notes"       # 8-char unguessable URL
+wrfi read a028                                  # print the content
+wrfi read a028 --since 5 --summary              # what changed since v5 (the gist)
+wrfi update a028 todo.md --token Blue-Castle    # update with the edit token
+wrfi diff a028 5                                # diff v5 → latest
+wrfi history a028                               # list versions
 ```
 
-## Agent Handoff
+### Options
 
-Every push returns a `handoff` object. Pass it to another agent:
+| Option | Applies to | Description |
+|--------|-----------|-------------|
+| `--title <t>` | push | Title (default: filename) |
+| `--type <t>` | push | Content type: `code`, `text`, `image`, `audio`, `video` |
+| `--secure` | push | 8-char unguessable URL |
+| `--unlisted` | push | Hide from the public feed |
+| `--password <p>` | push/read | Password-protect / read a protected creation |
+| `--token <t>` | read/update | Edit token (required for anonymous updates) |
+| `--version <n>` | read | Read a specific version |
+| `--since <n>` | read | Catch-up: what changed since version `n` |
+| `--summary` | read | With `--since`: the gist, no diff body |
+| `--message <m>` | update | Version note |
+| `--expected-version <n>` | update | Reject with 409 on version mismatch |
+| `--json` | read | Full JSON instead of content |
+| `--key <k>` | all | API key (or set `WRFI_API_KEY`) |
+| `--url <u>` | all | Base URL (default: `https://wr.fi`) |
 
-```bash
-# Agent A pushes
-npx wrfi push result.py --key My-Key
-# Response includes: handoff.url, handoff.token
+### Auth
 
-# Agent B reads the handoff
-curl -H "X-Wrify-Edit-Token: TOKEN" https://wr.fi/api/handoff/shortId
+- **Anonymous** pushes need no auth — they're unlisted with a 30-day expiry. The
+  push prints an **edit token**; save it to update the creation later.
+- For permanent, listed creations, pass `--key <api-key>` or set the
+  `WRFI_API_KEY` environment variable.
 
-# Or any AI reads the plain text view
-curl https://wr.fi/shortId?h
-```
+## Related
 
-See the [WRFI Agent Handoff Protocol](https://github.com/wrfi/wrfi-spec/blob/main/SPEC.md#agent-handoff-protocol) for the full specification.
-
-## Links
-
-- [wr.fi](https://wr.fi) — the platform
-- [WRFI Spec](https://github.com/wrfi/wrfi-spec) — the open standard (CC-BY-4.0)
-- [API Docs](https://wr.fi/docs) — full API reference
-- [llms.txt](https://wr.fi/llms.txt) — machine-readable documentation
+- [wr.fi](https://wr.fi) — the platform · [docs](https://wr.fi/docs)
+- [`@wrfi/mcp`](https://www.npmjs.com/package/@wrfi/mcp) — the MCP server, for
+  native tool integration in Claude Desktop, Cursor, etc.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-Copyright 2026 Kurikkai Oy.
+MIT — see [LICENSE](LICENSE). © Kurikkai Oy.

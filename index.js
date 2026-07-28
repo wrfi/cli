@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { basename, extname } from "node:path";
-import { push, read, readRaw, update, diff, history } from "./lib/api.js";
+import { push, read, readRaw, update, diff, history, catchup, append, tail, mintToken } from "./lib/api.js";
 
 // Extension → { contentType, mimeType }
 const EXT_MAP = {
@@ -66,6 +66,19 @@ Usage:
   wrfi update <shortId> <file> [options]  Update a creation
   wrfi diff <shortId> [from] [options]    Show diff between versions
   wrfi history <shortId> [options]   Show version history
+  wrfi setup <shortId> [options]     Set up the agent environment (MCP servers) a creation declares
+  wrfi append <shortId> "text"       Append a line (no read-before-write, never conflicts; text may be piped)
+  wrfi tail <shortId> [n] [-f]       Show the last n append entries; -f follows
+  wrfi token <shortId> --append-only Mint an append-only token for a fleet
+
+Setup options:
+  --plan                 Show the plan + trust signals; write nothing (safe default to start)
+  --print                Print the .mcp.json block to paste manually (no prompts, no writes)
+  --client <name>        Target client config: claude-code (default), cursor, claude-desktop
+  --global               Use the client's global config instead of project-local
+  --target <file>        Write to a specific mcp config file
+  --mcp-only             Install MCP servers only; ignore declared skills
+  --yes                  Auto-approve — only for locally-trusted/registered servers (never anonymous)
 
 Push options:
   --title <title>        Title (default: filename)
@@ -77,6 +90,9 @@ Push options:
 Read options:
   --password <pass>      Password for protected creations
   --token <token>        Edit token for protected creations
+  --version <n>          Read a specific version (default: latest)
+  --since <n>            Catch-up: what changed since version n (messages + diff)
+  --summary              With --since: the gist (shape + why + where), no diff body
   --json                 Output full JSON instead of content
 
 Update options:
@@ -85,6 +101,21 @@ Update options:
   --expected-version <n> Update only if the creation is at version n (409 otherwise).
                          Omitted: the CLI reads the current version and uses it.
   --force                Last-write-wins: skip the version check and overwrite (audited)
+
+Append options:
+  --author <name>        Attribution recorded with the entry (e.g. crawler-2)
+  --append-token <tok>   Append-only token (from wrfi token --append-only)
+  --message <msg>        Version note
+  --expected-version <n> Opt into strict mode (409 if not this version)
+
+Tail options:
+  -f, --follow           Stream new entries as they arrive
+  --interval <sec>       Poll interval for --follow (default 3)
+  --json                 Output structured JSON
+
+Token options:
+  --append-only          Mint an append-only capability token (required)
+  --label <name>         Human label stored with the token
 
 Common options:
   --key <api-key>        API key (or set WRFI_API_KEY env var)
@@ -97,11 +128,31 @@ Examples:
   wrfi read a028
   wrfi update a028 todo.md --token Millet-Barrel
   wrfi diff a028 5
-  wrfi history a028`);
+  wrfi history a028
+  wrfi append a028 "deploy started at 14:03" --author ci-bot
+  tail -f app.log | wrfi append a028 --append-token wrfi_ap_...
+  wrfi tail a028 20 -f
+  wrfi token a028 --append-only --label "crawler fleet"`);
+}
+
+// A non-numeric int flag (e.g. --expected-version latest) previously became NaN,
+// which JSON-serializes to null → the server treats it as omitted → optimistic
+// concurrency silently disabled. Fail loudly instead.
+function intArg(raw, name) {
+  const v = parseInt(raw, 10);
+  if (Number.isNaN(v)) { console.error(`${name} must be an integer`); process.exit(1); }
+  return v;
 }
 
 function parseArgs(argv) {
   const args = { _: [] };
+  // Expand --flag=value into --flag value so the space-separated matchers below
+  // catch it. Without this, `--password=secret` was silently dropped and the
+  // push went out UNPROTECTED with no error.
+  argv = argv.flatMap((a) => {
+    const m = /^(--[a-z][a-z-]*)=(.*)$/s.exec(a);
+    return m ? [m[1], m[2]] : [a];
+  });
   let i = 0;
   while (i < argv.length) {
     const arg = argv[i];
@@ -113,12 +164,35 @@ function parseArgs(argv) {
     else if (arg === "--token" && i + 1 < argv.length) args.token = argv[++i];
     else if (arg === "--password" && i + 1 < argv.length) args.password = argv[++i];
     else if (arg === "--message" && i + 1 < argv.length) args.message = argv[++i];
-    else if (arg === "--expected-version" && i + 1 < argv.length) args.expectedVersion = parseInt(argv[++i], 10);
+    else if (arg === "--expected-version" && i + 1 < argv.length) args.expectedVersion = intArg(argv[++i], "--expected-version");
     else if (arg === "--force") args.force = true;
+    else if (arg === "--version" && i + 1 < argv.length) args.version = intArg(argv[++i], "--version");
+    else if (arg === "--since" && i + 1 < argv.length) args.since = intArg(argv[++i], "--since");
+    else if (arg === "--summary") args.summary = true;
     else if (arg === "--secure") args.secure = true;
     else if (arg === "--unlisted") args.unlisted = true;
     else if (arg === "--json") args.json = true;
-    else if (!arg.startsWith("-")) args._.push(arg);
+    else if (arg === "--plan") args.plan = true;
+    else if (arg === "--print") args.print = true;
+    else if (arg === "--global") args.global = true;
+    else if (arg === "--mcp-only") args.mcpOnly = true;
+    else if (arg === "--yes" || arg === "-y") args.yes = true;
+    else if (arg === "--target" && i + 1 < argv.length) args.target = argv[++i];
+    else if (arg === "--client" && i + 1 < argv.length) args.client = argv[++i];
+    else if (arg === "--author" && i + 1 < argv.length) args.author = argv[++i];
+    else if (arg === "--append-token" && i + 1 < argv.length) args.appendToken = argv[++i];
+    else if (arg === "--append-only") args.appendOnly = true;
+    else if (arg === "--label" && i + 1 < argv.length) args.label = argv[++i];
+    else if (arg === "--follow" || arg === "-f") args.follow = true;
+    else if (arg === "--interval" && i + 1 < argv.length) args.interval = intArg(argv[++i], "--interval");
+    else if (arg.startsWith("-")) {
+      // Unknown flag (or a known value-flag missing its value): fail loudly
+      // rather than dropping it, which previously turned a typo like
+      // `--pasword secret` into an unprotected push + a stray positional.
+      console.error(`Unknown or malformed option: ${arg}`);
+      process.exit(1);
+    }
+    else args._.push(arg);
     i++;
   }
   return args;
@@ -157,11 +231,20 @@ async function cmdRead(args) {
   const shortId = args._[0];
   if (!shortId) { console.error("Usage: wrfi read <shortId>"); process.exit(1); }
 
+  const auth = { password: args.password, editToken: args.token, apiKey: args.key };
+
+  if (args.since) {
+    const out = await catchup(shortId, args.since, { ...auth, json: args.json, summary: args.summary });
+    if (args.json) console.log(JSON.stringify(out, null, 2));
+    else process.stdout.write(out);
+    return;
+  }
+
   if (args.json) {
-    const data = await read(shortId, { password: args.password, editToken: args.token, apiKey: args.key });
+    const data = await read(shortId, { ...auth, version: args.version });
     console.log(JSON.stringify(data, null, 2));
   } else {
-    const text = await readRaw(shortId, { password: args.password, editToken: args.token, apiKey: args.key });
+    const text = await readRaw(shortId, { ...auth, version: args.version });
     process.stdout.write(text);
   }
 }
@@ -186,9 +269,11 @@ async function cmdUpdate(args) {
       force: args.force,
     });
   } catch (err) {
+    // Conflict responses carry structure — surface it instead of a bare message.
     if (err.status === 409 && err.body) {
       console.error(`Version conflict: the creation is now at v${err.body.currentVersion}.`);
-      console.error(`Re-read it, merge, and retry — or pass --force to overwrite the newer version.`);
+      console.error(`Re-read it (wrfi read ${shortId} --since <yourVersion>), merge, and retry —`);
+      console.error(`or pass --force to overwrite the newer version.`);
       process.exit(1);
     }
     if (err.status === 428 && err.body) {
@@ -202,6 +287,10 @@ async function cmdUpdate(args) {
   console.log(result.url);
   console.error(`Version: ${result.version}`);
   if (result.forced) console.error(`Forced: overwrote v${result.forcedOverwriteOfVersion} (last-write-wins)`);
+  // Surface concurrency warnings (e.g. overwrote_different_author) — silently
+  // dropping them is how two agents end up clobbering each other's work.
+  if (result.warning) console.error(`Warning: ${result.warning}`);
+  if (result.conflict) console.error(`Conflict: ${JSON.stringify(result.conflict)}`);
 }
 
 async function cmdDiff(args) {
@@ -239,9 +328,99 @@ const args = parseArgs(argv.slice(1));
 
 if (args.url) process.env.WRFI_URL = args.url;
 
-if (!command || args.help) {
+if (!command || command === "--help" || command === "-h" || args.help) {
   usage();
-  process.exit(command ? 0 : 1);
+  // Bare `wrfi` (no command) is an error; explicit --help is success.
+  process.exit(command || args.help ? 0 : 1);
+}
+
+async function cmdSetup(args) {
+  const shortId = args._[0];
+  if (!shortId) { console.error("Usage: wrfi setup <shortId> [--plan | --print | --global | --target <file> | --yes | --mcp-only]"); process.exit(1); }
+  const { runSetup } = await import("./lib/setup.js");
+  await runSetup(shortId, {
+    plan: !!args.plan,
+    print: !!args.print,
+    global: !!args.global,
+    target: args.target,
+    yes: !!args.yes,
+    mcpOnly: !!args.mcpOnly,
+    client: args.client,
+    editToken: args.token,
+    password: args.password,
+    apiKey: args.key,
+  });
+}
+
+async function cmdAppend(args) {
+  const shortId = args._[0];
+  if (!shortId) { console.error('Usage: wrfi append <shortId> "text"   (or pipe text via stdin)'); process.exit(1); }
+  // Text from the positional arg, or stdin when omitted / "-" (for piping logs).
+  let text = args._[1];
+  if (text === undefined || text === "-") {
+    text = readFileSync(0, "utf8").replace(/\n$/, "");
+  }
+  if (!text) { console.error("Nothing to append (empty text)."); process.exit(1); }
+
+  const result = await append(shortId, {
+    text,
+    author: args.author,
+    message: args.message,
+    appendToken: args.appendToken,
+    editToken: args.token,
+    apiKey: args.key,
+    expectedVersion: args.expectedVersion,
+  });
+  if (result.error) { console.error(`Error: ${result.error}${result.hint ? ` (hint: ${result.hint})` : ""}`); process.exit(1); }
+  console.log(result.url);
+  console.error(`v${result.version}  +${result.bytes} bytes @ offset ${result.offset}`);
+}
+
+async function cmdTail(args) {
+  const shortId = args._[0];
+  if (!shortId) { console.error("Usage: wrfi tail <shortId> [n] [-f]"); process.exit(1); }
+  const n = args._[1] ? parseInt(args._[1], 10) : 20;
+  const auth = { password: args.password, editToken: args.token, apiKey: args.key };
+
+  if (!args.follow) {
+    const out = await tail(shortId, n, { ...auth, json: args.json });
+    if (args.json) console.log(JSON.stringify(out, null, 2));
+    else process.stdout.write(out.endsWith("\n") ? out : out + "\n");
+    return;
+  }
+
+  // Follow mode: poll, print only entries newer than the last version we saw.
+  const intervalMs = Math.max((args.interval || 3), 1) * 1000;
+  let lastVersion = 0;
+  // Prime with the recent window so -f doesn't dump the whole history.
+  const first = await tail(shortId, n, { ...auth, json: true });
+  for (const e of first.entries) { printEntry(e); lastVersion = Math.max(lastVersion, e.version); }
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+    let out;
+    try { out = await tail(shortId, 100, { ...auth, json: true }); }
+    catch (err) { console.error(`(tail retry: ${err.message})`); continue; }
+    for (const e of out.entries) {
+      if (e.version > lastVersion) { printEntry(e); lastVersion = e.version; }
+    }
+  }
+}
+
+function printEntry(e) {
+  const who = e.author ? ` ${e.author}` : "";
+  process.stdout.write(`[v${e.version}${who}] ${e.text}\n`);
+}
+
+async function cmdToken(args) {
+  const shortId = args._[0];
+  if (!shortId) { console.error("Usage: wrfi token <shortId> --append-only [--label <name>]"); process.exit(1); }
+  if (!args.appendOnly) { console.error("Only --append-only tokens are supported. Run: wrfi token <shortId> --append-only"); process.exit(1); }
+  const result = await mintToken(shortId, { scope: "append", label: args.label, editToken: args.token, apiKey: args.key });
+  if (result.error) { console.error(`Error: ${result.error}`); process.exit(1); }
+  console.log(result.token);
+  console.error(`Append-only token minted (id ${result.id}${result.label ? `, "${result.label}"` : ""}). Shown once — store it now.`);
+  console.error(`Use: wrfi append ${shortId} "..." --append-token ${result.token}`);
 }
 
 const commands = {
@@ -250,6 +429,10 @@ const commands = {
   update: cmdUpdate,
   diff: cmdDiff,
   history: cmdHistory,
+  setup: cmdSetup,
+  append: cmdAppend,
+  tail: cmdTail,
+  token: cmdToken,
 };
 
 const fn = commands[command];
