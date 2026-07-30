@@ -1,6 +1,6 @@
 {
   "name": "wrfi-cli",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "CLI for wr.fi \u2014 push, read, update, diff, and manage AI creations",
   "bin": {
     "wrfi": "./index.js",
