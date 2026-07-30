@@ -121,7 +121,9 @@ Append options:
   --message <msg>        Version note
   --expected-version <n> Opt into strict mode (409 if not this version)
   --idempotency-key <k>  Repeat-safe retries: the same Idempotency-Key within 10 min replays the first result
-  --task <file.json>     Attach the task layer (objective, requestedAction, completed[], …) on push/update
+
+Workflow options (push / update):
+  --task <file.json>     Attach the task layer (objective, requestedAction, completed[], …)
   --environment <f.json> Declare the workspace (MCP servers, skills) the next agent needs
   --status <s>           Relay status: open | done | needs-human
 

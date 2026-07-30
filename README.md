@@ -48,8 +48,7 @@ wrfi setup abcd             # interactive: confirm each server, then merge into 
 It shows each server's trust signal (resolved against the official
 [MCP Registry](https://registry.modelcontextprotocol.io) — "registered" means
 *known identity*, not vetted-safe) and the publisher (anonymous publishers get a
-loud warning). Each item is confirmed individually; `--yes` only applies to
-locally-trusted/registered servers — never to anonymous or unlisted ones.
+loud warning). Each item is confirmed individually; `--yes` auto-approves ONLY servers in your local trust file (~/.wrfi/trusted.json) — registry-listed still prompts (identity is not endorsement), and anonymous/unlisted always prompt.
 
 - **MCP servers** merge into the client's config, preserving any already there.
   Target it with `--client claude-code` (default, project `.mcp.json`), `cursor`
