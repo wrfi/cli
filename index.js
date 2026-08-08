@@ -97,7 +97,7 @@ Push options:
   --title <title>        Title (default: filename)
   --type <type>          Content type: code, text, image, audio, video
   --secure               Force an 8-char unguessable URL (already the default for
-                         anonymous pushes)
+                         any non-public push — anonymous, --unlisted, --password)
   --speakable            Opt into the short 4-char say-out-loud URL (public or
                          low-sensitivity work only — it is guessable)
   --unlisted             Hide from public feed

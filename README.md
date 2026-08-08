@@ -75,7 +75,7 @@ wrfi history a028                               # list versions
 |--------|-----------|-------------|
 | `--title <t>` | push | Title (default: filename) |
 | `--type <t>` | push | Content type: `code`, `text`, `image`, `audio`, `video` |
-| `--secure` | push | Force an 8-char unguessable URL (the default for anonymous pushes) |
+| `--secure` | push | Force an 8-char unguessable URL (already the default for any non-public push) |
 | `--speakable` | push | Opt into the short 4-char say-out-loud URL — guessable, so public/low-sensitivity work only |
 | `--unlisted` | push | Hide from the public feed |
 | `--password <p>` | push/read | Password-protect / read a protected handoff |
