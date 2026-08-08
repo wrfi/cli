@@ -1,6 +1,6 @@
 {
   "name": "wrfi-cli",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "CLI for wr.fi \u2014 push, read, update, append, and hand off AI work as versioned handoffs",
   "bin": {
     "wrfi": "./index.js",

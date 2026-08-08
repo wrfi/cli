@@ -96,7 +96,10 @@ Setup options:
 Push options:
   --title <title>        Title (default: filename)
   --type <type>          Content type: code, text, image, audio, video
-  --secure               Generate 8-char unguessable URL
+  --secure               Force an 8-char unguessable URL (already the default for
+                         anonymous pushes)
+  --speakable            Opt into the short 4-char say-out-loud URL (public or
+                         low-sensitivity work only — it is guessable)
   --unlisted             Hide from public feed
   --password <pass>      Password-protect the creation
 
@@ -143,7 +146,7 @@ Common options:
 
 Examples:
   wrfi push hello.py
-  wrfi push doc.md --secure --title "Private notes"
+  wrfi push doc.md --title "Private notes"        # anonymous: unguessable by default
   wrfi read a028
   wrfi update a028 todo.md --token Millet-Barrel
   wrfi diff a028 5
@@ -189,6 +192,9 @@ function parseArgs(argv) {
     else if (arg === "--since" && i + 1 < argv.length) args.since = intArg(argv[++i], "--since");
     else if (arg === "--summary") args.summary = true;
     else if (arg === "--secure") args.secure = true;
+    // Anonymous pushes are unguessable by default; this opts back into the
+    // short speakable id for public / low-sensitivity work.
+    else if (arg === "--speakable") args.speakable = true;
     else if (arg === "--unlisted") args.unlisted = true;
     else if (arg === "--json") args.json = true;
     else if (arg === "--plan") args.plan = true;
@@ -238,7 +244,7 @@ async function cmdPush(args) {
     title: args.title || name,
     contentType: args.type || ct,
     artifacts: [{ data: data.toString("base64"), mimeType: mime, filename: name }],
-    secure: args.secure,
+    secure: args.speakable ? false : args.secure,
     unlisted: args.unlisted,
     password: args.password,
     apiKey: args.key,

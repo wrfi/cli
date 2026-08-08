@@ -23,19 +23,19 @@ Requires Node.js ≥ 18.
 
 ```bash
 wrfi push <file> [options]                # push a file → short URL
-wrfi read <shortId> [options]             # read a creation
+wrfi read <shortId> [options]             # read a handoff
 wrfi update <shortId> <file> [options]    # update (new version, same URL)
 wrfi diff <shortId> [from] [options]      # diff between versions
 wrfi history <shortId> [options]          # version history
 wrfi append <shortId> "text" [options]    # add an entry — server-serialized, retry-safe (auto Idempotency-Key)
 wrfi tail <shortId> [options]             # read the latest entries (-f to follow)
 wrfi token <shortId> [options]            # mint an append-only capability token
-wrfi setup <shortId> [options]            # set up the MCP servers a creation declares
+wrfi setup <shortId> [options]            # set up the MCP servers a handoff declares
 ```
 
 ### `wrfi setup` — reconstitute an agent environment
 
-A creation can declare the MCP servers the next agent needs (an `environment`
+A handoff can declare the MCP servers the next agent needs (an `environment`
 manifest). `wrfi setup` reconstitutes them — **with per-item confirmation, never
 silently.**
 
@@ -61,7 +61,7 @@ loud warning). Each item is confirmed individually; `--yes` auto-approves ONLY s
 
 ```bash
 wrfi push hello.py                              # anonymous push (30-day expiry)
-wrfi push doc.md --secure --title "Notes"       # 8-char unguessable URL
+wrfi push doc.md --title "Notes"                # anonymous pushes are 8-char unguessable by default
 wrfi read a028                                  # print the content
 wrfi read a028 --since 5 --summary              # what changed since v5 (the gist)
 wrfi update a028 todo.md --token Blue-Castle    # update with the edit token
@@ -75,15 +75,16 @@ wrfi history a028                               # list versions
 |--------|-----------|-------------|
 | `--title <t>` | push | Title (default: filename) |
 | `--type <t>` | push | Content type: `code`, `text`, `image`, `audio`, `video` |
-| `--secure` | push | 8-char unguessable URL |
+| `--secure` | push | Force an 8-char unguessable URL (the default for anonymous pushes) |
+| `--speakable` | push | Opt into the short 4-char say-out-loud URL — guessable, so public/low-sensitivity work only |
 | `--unlisted` | push | Hide from the public feed |
-| `--password <p>` | push/read | Password-protect / read a protected creation |
+| `--password <p>` | push/read | Password-protect / read a protected handoff |
 | `--token <t>` | read/update | Edit token (required for anonymous updates) |
 | `--version <n>` | read | Read a specific version |
 | `--since <n>` | read | Catch-up: what changed since version `n` |
 | `--summary` | read | With `--since`: the gist, no diff body |
 | `--message <m>` | update | Version note |
-| `--expected-version <n>` | update | Update only if the creation is at version `n` (409 otherwise). Omitted: the CLI reads the current version and uses it — the default update is version-safe |
+| `--expected-version <n>` | update | Update only if the handoff is at version `n` (409 otherwise). Omitted: the CLI reads the current version and uses it — the default update is version-safe |
 | `--force` | update | Last-write-wins: skip the version check and overwrite (audited by the server) |
 | `--json` | read | Full JSON instead of content |
 | `--key <k>` | all | API key (or set `WRFI_API_KEY`) |
@@ -92,8 +93,8 @@ wrfi history a028                               # list versions
 ### Auth
 
 - **Anonymous** pushes need no auth — they're unlisted with a 30-day expiry. The
-  push prints an **edit token**; save it to update the creation later.
-- For permanent, listed creations, pass `--key <api-key>` or set the
+  push prints an **edit token**; save it to update the handoff later.
+- For permanent, listed handoffs, pass `--key <api-key>` or set the
   `WRFI_API_KEY` environment variable.
 
 ## Related
