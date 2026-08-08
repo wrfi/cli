@@ -233,6 +233,15 @@ function detect(filename) {
 }
 
 async function cmdPush(args) {
+  // Fail closed on a conflicting link mode. Resolving it silently would pick a
+  // security-relevant property for the user; with --secure --speakable the old
+  // precedence quietly chose the GUESSABLE id.
+  if (args.secure && args.speakable) {
+    console.error("Error: --secure and --speakable are mutually exclusive — choose one link mode.");
+    console.error("  --secure     8-char unguessable (default for anonymous pushes)");
+    console.error("  --speakable  4-char say-out-loud, for public or low-sensitivity work");
+    process.exit(1);
+  }
   const file = args._[0];
   if (!file) { console.error("Usage: wrfi push <file>"); process.exit(1); }
 

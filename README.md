@@ -6,7 +6,7 @@ The command-line tool for [wr.fi](https://wr.fi) — push, read, update, append,
 hand off AI-generated work. **Zero dependencies** (Node.js built-ins only).
 
 ```bash
-npx wrfi-cli push hello.py            # → https://wr.fi/abcd  + an edit token
+npx wrfi-cli push hello.py            # → https://wr.fi/m2x46onw  + an edit token
 ```
 
 ## Install
